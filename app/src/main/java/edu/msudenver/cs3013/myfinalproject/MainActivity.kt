@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,8 @@ import edu.msudenver.cs3013.myfinalproject.ui.theme.MyFinalProjectTheme
 import edu.msudenver.cs3013.myfinalproject.ui.theme.typeColor
 import edu.msudenver.cs3013.myfinalproject.viewmodel.PokemonDetailViewModel
 import edu.msudenver.cs3013.myfinalproject.viewmodel.PokemonViewModel
+import androidx.compose.ui.graphics.Brush
+
 
 class MainActivity : ComponentActivity() {
 
@@ -161,6 +164,8 @@ fun PokemonDetailScreen(name: String) {
     val viewModel: PokemonDetailViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
+
+
     // Loads Pokemon details when the screen opens or when a different Pokemon name is received
     LaunchedEffect(name) {
         viewModel.fetchPokemonDetail(name)
@@ -185,10 +190,19 @@ fun PokemonDetailScreen(name: String) {
         // Displays Pokemon detail information after successful response
         is PokemonDetailViewModel.UiState.Success -> {
             val pokemon = (uiState as PokemonDetailViewModel.UiState.Success).pokemon
+            // Get Pokemon type colors for the gradient
+            val typeColors = pokemon.types.map { typeColor(it.type.name) }
+            val gradientColors = if (typeColors.size >= 2) typeColors
+            else listOf(typeColors.first(), typeColors.first().copy(alpha = 0.5f))
+
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    //Background gradient color
+                    .background(
+                        Brush.verticalGradient(gradientColors)
+                    )
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
