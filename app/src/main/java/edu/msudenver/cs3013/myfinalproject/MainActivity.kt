@@ -40,77 +40,87 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import edu.msudenver.cs3013.myfinalproject.model.PokemonEntry
-import edu.msudenver.cs3013.myfinalproject.model.PokemonListResponse
 import edu.msudenver.cs3013.myfinalproject.ui.theme.MyFinalProjectTheme
+import edu.msudenver.cs3013.myfinalproject.ui.theme.typeColor
 import edu.msudenver.cs3013.myfinalproject.viewmodel.PokemonDetailViewModel
 import edu.msudenver.cs3013.myfinalproject.viewmodel.PokemonViewModel
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 
 class MainActivity : ComponentActivity() {
-
-    private val client = HttpClient(Android) {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-    }
-
-    private suspend fun fetchPokemonList(): List<PokemonEntry> =
-        client.get("https://pokeapi.co/api/v2/pokemon?limit=150")
-            .body<PokemonListResponse>()
-            .results
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MyFinalProjectTheme {
+                // NavController manages navigation between screens
                 val navController = rememberNavController()
+
+                // Creates and stores the ViewModel
                 val viewModel: PokemonViewModel = viewModel()
+
+                // Observes UI state changes from the ViewModel
                 val uiState by viewModel.uiState.collectAsState()
 
-                NavHost(navController = navController, startDestination = "list"){
-                    composable("list"){
-                        when(uiState) {
+                // NavHost defines all navigation routes in the app
+                // startDestination: sets the first screen shown on launch
+                NavHost(navController = navController, startDestination = "list") {
+
+                    // List screen route
+                    composable("list") {
+                        when (uiState) {
+
+                            // Show loading spinner while data is being fetched
                             is PokemonViewModel.UiState.Loading -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator()
                                 }
                             }
+
+                            // Shows error message if network call fails
                             is PokemonViewModel.UiState.Error -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text(text = (uiState as PokemonViewModel.UiState.Error).message)
                                 }
                             }
+
+                            // Show the list when data loads successfully
                             is PokemonViewModel.UiState.Success -> {
                                 val pokemon = (uiState as PokemonViewModel.UiState.Success).pokemon
+                                // Pass the Pokemon list and navigation to the list screen
                                 PokemonListScreen(pokemon) { name ->
                                     navController.navigate("detail/$name")
                                 }
                             }
                         }
                     }
+
                     composable("detail/{name}") { backStackEntry ->
+                        //Gets the Pokemon name passed through navigation arguments
                         val name = backStackEntry.arguments?.getString("name") ?: ""
+                        //Displays the selected Pokemon's detail screen
                         PokemonDetailScreen(name)
                     }
                 }
-
-
             }
         }
     }
 }
 
+
+
+/**
+ * Displays a scrollable list of Pokemon
+ *
+ * @param pokemonList List of Pokémon retrieved from the API
+ * @param onItemClick Callback triggered when a Pokémon is selected
+ */
 @Composable
 fun PokemonListScreen(pokemonList: List<PokemonEntry>, onItemClick: (String) -> Unit) {
+    // Displays a scrollable list of Pokemon
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(pokemonList) { pokemon ->
+
+            //Card for each Pokemon item
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -119,35 +129,60 @@ fun PokemonListScreen(pokemonList: List<PokemonEntry>, onItemClick: (String) -> 
                 shape = RoundedCornerShape(10.dp),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Text(
-                    text = pokemon.name.replaceFirstChar { it.uppercase() },
-                    modifier = Modifier.padding(16.dp)
-                )
+                //Centers Pokemon name inside the card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    //Displays Pokemon name with first letter capitalized
+                    Text(
+                        text = pokemon.name.replaceFirstChar { it.uppercase() }
+                    )
+                }
             }
         }
     }
 }
 
+
+
+/**
+ * Displays detailed information about a selected Pokemon,
+ * including its image, stats, height, weight, and types.
+ *
+ * @param name Name of the selected Pokemon used to fetch detail data
+ */
 @Composable
 fun PokemonDetailScreen(name: String) {
+    // Each detail screen gets its own ViewModel instance
     val viewModel: PokemonDetailViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
+    // Loads Pokemon details when the screen opens or when a different Pokemon name is received
     LaunchedEffect(name) {
         viewModel.fetchPokemonDetail(name)
     }
 
     when (uiState) {
+
+        // Displays loading spinner while API data is being fetched
         is PokemonDetailViewModel.UiState.Loading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
+
+        // Displays error message if the request fails
         is PokemonDetailViewModel.UiState.Error -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text((uiState as PokemonDetailViewModel.UiState.Error).message)
             }
         }
+
+        // Displays Pokemon detail information after successful response
         is PokemonDetailViewModel.UiState.Success -> {
             val pokemon = (uiState as PokemonDetailViewModel.UiState.Success).pokemon
 
@@ -157,7 +192,7 @@ fun PokemonDetailScreen(name: String) {
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Name
+                // Displays Pokemon name at the top
                 Text(
                     text = pokemon.name.replaceFirstChar { it.uppercase() },
                     fontSize = 28.sp,
@@ -165,7 +200,7 @@ fun PokemonDetailScreen(name: String) {
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Sprite
+                // Displays Pokemon sprite image from API URL
                 pokemon.sprites.frontDefault?.let { url ->
                     AsyncImage(
                         model = url,
@@ -176,7 +211,7 @@ fun PokemonDetailScreen(name: String) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Height & Weight
+                //Displays height and weight values
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     Text(text = "Height: ${pokemon.height * 10} cm")
                     Text(text = "Weight: ${pokemon.weight / 10.0} kg")
@@ -184,12 +219,19 @@ fun PokemonDetailScreen(name: String) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Types
-                Text(text = "Types", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                // Displays Pokemon type badges, each type displayed as a colored rounded card
+                Text(
+                    text = "Types",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     pokemon.types.forEach { typeSlot ->
+                        // Applies color styling based on pokemon type
                         Card(
                             shape = RoundedCornerShape(50),
+
                             colors = CardDefaults.cardColors(
                                 containerColor = typeColor(typeSlot.type.name)
                             )
@@ -205,9 +247,15 @@ fun PokemonDetailScreen(name: String) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Stats
-                Text(text = "Base Stats", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                // Displays pokemon base stats using progress bars
+                Text(
+                    text = "Base Stats",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp
+                )
+
                 pokemon.stats.forEach { statSlot ->
+
                     StatBar(
                         statName = statSlot.stat.name.uppercase(),
                         value = statSlot.baseStat
@@ -218,43 +266,38 @@ fun PokemonDetailScreen(name: String) {
     }
 }
 
+
+
+/**
+ * Displays a Pokemon stat with its value and a progress bar.
+ *
+ * @param statName Name of the stat being displayed
+ * @param value Base stat value used for the progress bar
+ */
 @Composable
 fun StatBar(statName: String, value: Int) {
+
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+
+        // Displays stat name on the left and value on the right
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = statName, fontSize = 12.sp)
-            Text(text = value.toString(), fontSize = 12.sp)
+            Text(
+                text = statName,
+                fontSize = 12.sp
+            )
+            Text(
+                text = value.toString(),
+                fontSize = 12.sp
+            )
         }
+
+        // Progress bar representing the stat value (max possible base stat: 255)
         LinearProgressIndicator(
             progress = { value / 255f },
             modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp))
         )
-    }
-}
-
-fun typeColor(type: String): Color {
-    return when (type) {
-        "fire"     -> Color(0xFFF08030)
-        "water"    -> Color(0xFF6890F0)
-        "grass"    -> Color(0xFF78C850)
-        "electric" -> Color(0xFFF8D030)
-        "psychic"  -> Color(0xFFF85888)
-        "ice"      -> Color(0xFF98D8D8)
-        "dragon"   -> Color(0xFF7038F8)
-        "dark"     -> Color(0xFF705848)
-        "fairy"    -> Color(0xFFEE99AC)
-        "fighting" -> Color(0xFFC03028)
-        "poison"   -> Color(0xFFA040A0)
-        "ground"   -> Color(0xFFE0C068)
-        "rock"     -> Color(0xFFB8A038)
-        "bug"      -> Color(0xFFA8B820)
-        "ghost"    -> Color(0xFF705898)
-        "steel"    -> Color(0xFFB8B8D0)
-        "flying"   -> Color(0xFF98A8F0)
-        "normal"   -> Color(0xFFA8A878)
-        else       -> Color.Gray
     }
 }
