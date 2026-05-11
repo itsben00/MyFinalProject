@@ -49,8 +49,7 @@ class PokemonViewModel : ViewModel() {
     private fun fetchPokemonList() {
         viewModelScope.launch {
             try {
-                val results = client
-                    .get("https://pokeapi.co/api/v2/pokemon?limit=151")
+                val results = client.get("https://pokeapi.co/api/v2/pokemon?limit=88&offset=721")
                     .body<PokemonListResponse>()
                     //Retrieves pokemon list from response
                     .results
