@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
+/**
+ * ViewModel responsible for fetching and managing
+ * detailed Pokemon data for the detail screen.
+ */
 class PokemonDetailViewModel : ViewModel() {
 
     private val client = HttpClient(Android) {
@@ -23,8 +27,11 @@ class PokemonDetailViewModel : ViewModel() {
     }
 
     sealed class UiState {
+        // Loading state shown while fetching Pokemon details
         object Loading : UiState()
+        // Success state containing Pokemon detail data
         data class Success(val pokemon: PokemonDetail) : UiState()
+        // Error state containing failure message
         data class Error(val message: String) : UiState()
     }
 
@@ -37,8 +44,10 @@ class PokemonDetailViewModel : ViewModel() {
                 val detail = client
                     .get("https://pokeapi.co/api/v2/pokemon/$name")
                     .body<PokemonDetail>()
+                // Updates UI state with successful response
                 _uiState.value = UiState.Success(detail)
             } catch (e: Exception) {
+                // Updates UI state if request fails
                 _uiState.value = UiState.Error("Failed to load $name details.")
             }
         }
